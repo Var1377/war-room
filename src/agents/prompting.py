@@ -170,3 +170,24 @@ def get_stakeholders(data):
     """
     return data.get("stakeholders", [])
 
+def get_events():
+    pass
+
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/api/transform', methods=['POST'])
+def transform():
+    data = request.get_json()
+    
+    target_id = data.get('targetID')
+    stakeholders = get_stakeholders(data)
+    events = get_events()
+
+    new_data = add_event_to_graph(data, target_id, generate_event(stakeholders, events)) 
+
+    return new_data.jsonify()
+
+if __name__ == '__main__':
+    app.run(debug=True)
