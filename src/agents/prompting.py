@@ -27,7 +27,7 @@ test_data2 = {
                 "Leading private space company"
             ],
             "NASA": [
-                "Government space agency"
+                "trying to go bankrupt due to management"
             ],
             "Blue Origin": [
                 "Competing private space company"
@@ -89,7 +89,7 @@ data = {
             "USA"
         ],
 
-        "stackholder_metadata": {
+        "stakeholder_metadata": {
             "Ukraine": [
                 "Wants to join NATO"
             ],
@@ -224,18 +224,37 @@ def generate_event(stakeholders, stakeholder_metadata, events, ev):
     try:
         with open('prompt.txt', 'r') as file:
             prompt_template = file.read()
+        
+
+                # Format the metadata into a readable string with bullet points for each item
+        metadata_str = '\n'.join([
+            f"{stakeholder}:\n" + '\n'.join(f"- {item}" for item in metadata)
+            for stakeholder, metadata in stakeholder_metadata.items()
+        ])
+
+        print(metadata_str)
             
         # Format the prompt with our variables
         prompt = prompt_template.format(
             stakeholders=', '.join(stakeholders),
+            metadata=metadata_str,
+            events='\n- '.join(events),
+            evs=', '.join(map(str, ev))
+        )
+
+            
+        # Format the prompt with our variables
+        prompt = prompt_template.format(
+            stakeholders=', '.join(stakeholders),
+            metadata=metadata_str,
             events='\n- '.join(events),
             evs=', '.join(map(str, ev))
         )
         
         # Call the language model with the prompt
-        response = call_language_model(prompt)
-        print(response)
 
+        print(prompt)
+        response = call_language_model(prompt)
         response = ast.literal_eval(response)
         return (response)
         
@@ -248,7 +267,7 @@ def get_stakeholders(data):
     return data.get("stakeholders", [])
 
 def get_stakeholder_metadata(data):
-    return data.get("stackholder_metadata", [])
+    return data.get("stakeholder_metadata", [])
 
 def get_events(data, target_id):
     """
@@ -321,16 +340,19 @@ def transform():
     target_id = data.get('targetID')
     stakeholders = get_stakeholders(data)
     stakeholder_metadata = get_stakeholder_metadata(data)
+    
     events = get_events(data, target_id)
     ev = get_ev(data, target_id)
 
     a = generate_event(stakeholders, stakeholder_metadata, events, ev)
     new_data = add_event_to_graph(data, a) 
+    return jsonify(new_data)
+
 
      
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
 
 
 
