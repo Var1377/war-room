@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Scenario {
+  id           String        @id @default(uuid())
+  prompt       String
+  model        String
+  title        String
+  overview     String
+  createdAt    DateTime     @default(now())
+  stakeholders Stakeholder[]
+  relationships Relationship[]
+}
+
+model Stakeholder {
+  id           String        @id @default(uuid())
+  scenarioId   String
+  name         String
+  role         String
+  interests    String
+  scenario     Scenario     @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  stakeholder1Relationships Relationship[] @relation("stakeholder1")
+  stakeholder2Relationships Relationship[] @relation("stakeholder2")
+}
+
+model Relationship {
+  id            String      @id @default(uuid())
+  scenarioId    String
+  stakeholder1Id String
+  stakeholder2Id String
+  description   String
+  scenario      Scenario   @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  stakeholder1  Stakeholder @relation("stakeholder1", fields: [stakeholder1Id], references: [id])
+  stakeholder2  Stakeholder @relation("stakeholder2", fields: [stakeholder2Id], references: [id])
+} 

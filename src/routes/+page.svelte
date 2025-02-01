@@ -1,18 +1,25 @@
 <script lang="ts">
-	const { data } = $props();
-	const { models, defaultModel, scenarios } = $derived(data);
 	import { selectedModel } from '$lib/stores';
+
+	const { data } = $props();
+	const { defaultModel, scenarios } = $derived(data);
 
 	let prompt = $state('');
 
 	function selectScenario(scenarioPrompt: string) {
 		prompt = scenarioPrompt;
 	}
+
+	$effect(() => {
+		if (defaultModel) {
+			selectedModel.set(defaultModel);
+		}
+	});
 </script>
 
 <div class="container mx-auto p-8">
-	<h1 class="h1 mb-8">[interesting title]</h1>
-
+	<h1 class="h1 mb-8">International Relations War Room</h1>
+	
 	<div class="mb-8">
 		<h2 class="h2 mb-4">Suggested Scenarios</h2>
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -43,11 +50,12 @@
 		</div>
 	</div>
 	<div class="mt-4">
-		<a
-			href="/stakeholders?prompt={prompt}&model={$selectedModel}"
-			class="variant-filled-primary btn w-full"
-		>
-			Analyze Scenario
-		</a>
+		<form method="POST" action="?/analyze">
+			<input type="hidden" name="prompt" bind:value={prompt} />
+			<input type="hidden" name="model" bind:value={$selectedModel} />
+			<button type="submit" class="variant-filled-primary btn w-full">
+				Analyze Scenario
+			</button>
+		</form>
 	</div>
 </div>

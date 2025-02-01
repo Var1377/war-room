@@ -15,7 +15,9 @@
 
 <AppBar>
 	{#snippet lead()}
-		<h1 class="place-self-center">[interesting title]</h1>
+		<a href="/">
+			<h1 class="place-self-center">[interesting title]</h1>
+		</a>
 	{/snippet}
 	{#snippet trail()}
 		<div class="h-8">
