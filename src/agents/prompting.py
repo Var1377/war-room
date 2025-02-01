@@ -4,6 +4,15 @@ import flask
 import json
 import anthropic
 
+def get_api_key():
+    try:
+        with open('apikey.txt', 'r') as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        raise Exception("apikey.txt file not found. Please create this file with your API key.")
+
+api_key =  get_api_key()
+ 
 data = {
         "targetID": 3, 
         "totalEvents": 4,
@@ -12,6 +21,18 @@ data = {
             "Russia",
             "USA"
         ],
+        "stackholder_metadata": {
+            "Ukraine": [
+                "Wants to join NATO"
+            ],
+            "Russia": [
+                "Wants to reclaim lost land"
+            ],
+            "USA": [
+                "Hates russia",
+                "Wants to add tarrifs internationally"
+            ]
+        },
         "graph": {
             "event": "Russia invades Ukraine",
             "eventID": 1,
@@ -88,15 +109,6 @@ def add_event_to_graph(data, target_event_id, new_events):
     recursive_add(data_copy["graph"])
     return data_copy
 
-def get_api_key():
-    try:
-        with open('apikey.txt', 'r') as file:
-            return file.read().strip()
-    except FileNotFoundError:
-        raise Exception("apikey.txt file not found. Please create this file with your API key.")
-    
-api_key =  get_api_key()
-
 def call_language_model(prompt):
     client = anthropic.Anthropic(
         api_key=api_key
@@ -115,8 +127,7 @@ def call_language_model(prompt):
     except Exception as e:
         raise Exception(f"Error calling Claude API: {str(e)}")
 
-
-def generate_event(stakeholders, events):
+def generate_event(stakeholders, stakeholder_metadata, events):
     '''
     Generates new events for all stakeholders based on the current event sequence
     using a template prompt stored in prompt.txt
@@ -133,45 +144,48 @@ def generate_event(stakeholders, events):
         )
         
         # Call the language model with the prompt
-        new_events = call_language_model(prompt)
+        new_events = call_language_model(prompt).split(',')
         
         return new_events
         
     except FileNotFoundError:
         raise Exception("prompt.txt file not found in src/agents directory")
 
-test_data = {
-        "stakeholders": ["SpaceX", "NASA", "Blue Origin"],
-        "events": [
-            "SpaceX successfully launches Starship orbital test flight",
-            "NASA announces partnership for lunar landing missions",
-            "Blue Origin unveils new Glenn rocket design"
-        ]
-    }
-
-result = generate_event(test_data["stakeholders"], test_data["events"])
-
-print("\nStakeholders:", test_data["stakeholders"])
-print("\nPrevious events:")
-for event in test_data["events"]:
-    print(f"- {event}")
-print("\nGenerated events:")
-print(result)
-
 def get_stakeholders(data):
-    """
-    Extracts the list of stakeholders from the data dictionary.
-    
-    Args:
-        data (dict): The data dictionary containing the stakeholders list
-        
-    Returns:
-        list: A list of stakeholder strings
-    """
     return data.get("stakeholders", [])
 
-def get_events():
-    pass
+def get_stakeholder_metadata(data):
+    return data.get("stackholder_metadata", [])
+
+def get_events(data, target_id):
+    """
+    Gets the path of events from root to target event as a list of event strings.
+    
+    Args:
+        data (dict): The data dictionary containing the event graph
+        target_id (int): ID of the target event to find path to
+        
+    Returns:
+        list: List of event description strings from root to target event
+    """
+    def find_path(node, target_id, current_path):
+        if node['eventID'] == target_id:
+            return current_path + [node['event']]
+            
+        for child in node.get('childEvents', []):
+            path = find_path(child, target_id, current_path + [node['event']])
+            if path:
+                return path
+                
+        return None
+
+    # Start search from root of graph
+    path = find_path(data['graph'], target_id, [])
+    
+    if path is None:
+        raise Exception(f"Event with ID {target_id} not found in graph")
+        
+    return path
 
 from flask import Flask, request, jsonify
 
@@ -183,11 +197,16 @@ def transform():
     
     target_id = data.get('targetID')
     stakeholders = get_stakeholders(data)
-    events = get_events()
+    stakeholder_metadata = get_stakeholder_metadata(data)
 
-    new_data = add_event_to_graph(data, target_id, generate_event(stakeholders, events)) 
+    events = get_events(data, target_id)
 
-    return new_data.jsonify()
+    a = generate_event(stakeholders, stakeholder_metadata, events)
+    print(a)
+
+    new_data = add_event_to_graph(data, target_id, a) 
+
+    return jsonify(new_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
