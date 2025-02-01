@@ -2,6 +2,7 @@ import requests
 import copy
 import flask
 import json
+import anthropic
 
 data = {
         "targetID": 3, 
@@ -97,42 +98,32 @@ def get_api_key():
 api_key =  get_api_key()
 
 def call_language_model(prompt):
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
-    }
-    
-    data = {
-        "model": "claude-3-sonnet-20240229",
-        "max_tokens": 1000,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    }
+    client = anthropic.Anthropic(
+        api_key=api_key
+    )
     
     try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers=headers,
-            json=data
+        message = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=1000,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
         )
-        response.raise_for_status()  # Raise an exception for bad status codes
+        return message.content[0].text
         
-        return response.json()['content'][0]['text']
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         raise Exception(f"Error calling Claude API: {str(e)}")
+
 
 def generate_event(stakeholders, events):
     '''
     Generates new events for all stakeholders based on the current event sequence
     using a template prompt stored in prompt.txt
+    A list of size stakeholders where each element is a string corresponding to a stakeholder in chronological order
     '''
     try:
-        with open('src/agents/prompt.txt', 'r') as file:
+        with open('prompt.txt', 'r') as file:
             prompt_template = file.read()
             
         # Format the prompt with our variables
@@ -148,6 +139,24 @@ def generate_event(stakeholders, events):
         
     except FileNotFoundError:
         raise Exception("prompt.txt file not found in src/agents directory")
+
+test_data = {
+        "stakeholders": ["SpaceX", "NASA", "Blue Origin"],
+        "events": [
+            "SpaceX successfully launches Starship orbital test flight",
+            "NASA announces partnership for lunar landing missions",
+            "Blue Origin unveils new Glenn rocket design"
+        ]
+    }
+
+result = generate_event(test_data["stakeholders"], test_data["events"])
+
+print("\nStakeholders:", test_data["stakeholders"])
+print("\nPrevious events:")
+for event in test_data["events"]:
+    print(f"- {event}")
+print("\nGenerated events:")
+print(result)
 
 def get_stakeholders(data):
     """
