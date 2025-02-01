@@ -1,4 +1,5 @@
 import requests
+import copy
 import flask
 import json
 
@@ -33,7 +34,6 @@ data = {
         }
     }
 
-import copy
 
 def add_event_to_graph(data, target_event_id, new_events):
     """
@@ -87,9 +87,6 @@ def add_event_to_graph(data, target_event_id, new_events):
     recursive_add(data_copy["graph"])
     return data_copy
 
-
-
-
 def get_api_key():
     try:
         with open('apikey.txt', 'r') as file:
@@ -98,29 +95,6 @@ def get_api_key():
         raise Exception("apikey.txt file not found. Please create this file with your API key.")
     
 api_key =  get_api_key()
-
-def generate_event(stakeholders, events, target_stakeholder):
-    '''
-    Generates new events for all stakeholders based on the current event sequence
-    using a template prompt stored in prompt.txt
-    '''
-    try:
-        with open('src/agents/prompt.txt', 'r') as file:
-            prompt_template = file.read()
-            
-        # Format the prompt with our variables
-        prompt = prompt_template.format(
-            stakeholders=', '.join(stakeholders),
-            events='\n- '.join(events)
-        )
-        
-        # Call the language model with the prompt
-        new_events = call_language_model(prompt)
-        
-        return new_events
-        
-    except FileNotFoundError:
-        raise Exception("prompt.txt file not found in src/agents directory")
 
 def call_language_model(prompt):
     headers = {
@@ -151,4 +125,39 @@ def call_language_model(prompt):
         return response.json()['content'][0]['text']
     except requests.exceptions.RequestException as e:
         raise Exception(f"Error calling Claude API: {str(e)}")
+
+def generate_event(stakeholders, events):
+    '''
+    Generates new events for all stakeholders based on the current event sequence
+    using a template prompt stored in prompt.txt
+    '''
+    try:
+        with open('src/agents/prompt.txt', 'r') as file:
+            prompt_template = file.read()
+            
+        # Format the prompt with our variables
+        prompt = prompt_template.format(
+            stakeholders=', '.join(stakeholders),
+            events='\n- '.join(events)
+        )
+        
+        # Call the language model with the prompt
+        new_events = call_language_model(prompt)
+        
+        return new_events
+        
+    except FileNotFoundError:
+        raise Exception("prompt.txt file not found in src/agents directory")
+
+def get_stakeholders(data):
+    """
+    Extracts the list of stakeholders from the data dictionary.
+    
+    Args:
+        data (dict): The data dictionary containing the stakeholders list
+        
+    Returns:
+        list: A list of stakeholder strings
+    """
+    return data.get("stakeholders", [])
 
