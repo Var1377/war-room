@@ -85,3 +85,69 @@ def add_event_to_graph(data, target_event_id, new_events):
     # Start the recursive search from the root of the event graph in the copied data.
     recursive_add(data_copy["graph"])
     return data_copy
+
+
+
+
+def get_api_key():
+    try:
+        with open('apikey.txt', 'r') as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        raise Exception("apikey.txt file not found. Please create this file with your API key.")
+    
+api_key =  get_api_key()
+
+def generate_event(stakeholders, events, target_stakeholder):
+    '''
+    Generates new events for all stakeholders based on the current event sequence
+    using a template prompt stored in prompt.txt
+    '''
+    try:
+        with open('src/agents/prompt.txt', 'r') as file:
+            prompt_template = file.read()
+            
+        # Format the prompt with our variables
+        prompt = prompt_template.format(
+            stakeholders=', '.join(stakeholders),
+            events='\n- '.join(events)
+        )
+        
+        # Call the language model with the prompt
+        new_events = call_language_model(prompt)
+        
+        return new_events
+        
+    except FileNotFoundError:
+        raise Exception("prompt.txt file not found in src/agents directory")
+
+def call_language_model(prompt):
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    
+    data = {
+        "model": "claude-3-sonnet-20240229",
+        "max_tokens": 1000,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    }
+    
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers=headers,
+            json=data
+        )
+        response.raise_for_status()  # Raise an exception for bad status codes
+        
+        return response.json()['content'][0]['text']
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Error calling Claude API: {str(e)}")
+
