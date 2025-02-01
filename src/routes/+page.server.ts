@@ -1,6 +1,5 @@
 import { anthropic, defaultModel, prisma } from '$lib/../hooks.server';
 import { error, redirect } from '@sveltejs/kit';
-import type { TextBlock } from '@anthropic-ai/sdk/resources/index.mjs';
 
 const DEFAULT_SCENARIOS = [
     {
@@ -39,32 +38,13 @@ export const actions = {
         if (!prompt || !model) {
             throw error(400, 'Missing required fields');
         }
-
-        const prefix = `{"title":"`;
-        const response = await anthropic.messages.create({
-            messages: [
-                { role: "user", content: `What do you think about the following scenario: ${prompt}. Answer in the following JSON format: {"title":string, "overview":string, "stakeholders":[{"name":string, "role":string, "interests":string[]}]}` },
-                { role: "assistant", content: prefix },
-            ],
-            model,
-            max_tokens: 512,
-        });
-
-        const overview = JSON.parse((`${prefix}${(response.content[0] as TextBlock).text}`));
         
         const scenario = await prisma.scenario.create({
             data: {
                 prompt,
                 model,
-                title: overview.title,
-                overview: overview.overview,
-                stakeholders: {
-                    create: overview.stakeholders.map((s: { name: string, role: string, interests: string[] }) => ({
-                        name: s.name,
-                        role: s.role,
-                        interests: s.interests.join('\n')
-                    }))
-                }
+                title: "",
+                overview: "",
             }
         });
 

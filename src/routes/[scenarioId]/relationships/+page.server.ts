@@ -1,9 +1,10 @@
-import { error } from '@sveltejs/kit';
-import { prisma } from '../../../hooks.server';
-import type { PageServerLoad } from './$types';
+import { prisma } from '$lib/../hooks.server';
+import { analyzeRelationships } from '$lib/ai';
 import type { Actions } from './$types';
+import type { Relationship } from '@prisma/client';
+import { error, redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params}) => {
+export const load = async ({ params }) => {
     const scenarioId = params.scenarioId;
     if (!scenarioId) {
         throw error(400, 'Invalid scenario ID');
@@ -13,34 +14,48 @@ export const load: PageServerLoad = async ({ params}) => {
         where: { id: scenarioId },
         include: {
             stakeholders: true,
-            relationships: true
+            relationships: {
+                include: {
+                    stakeholder1: true,
+                    stakeholder2: true
+                }
+            }
         }
     });
 
-    return { scenario };
+    if (!scenario) {
+        throw error(404, 'Scenario not found');
+    }
+
+    if (!scenario.relationships.length) {
+        const newRelationships = analyzeRelationships(scenario.id);
+        return { scenario: newRelationships };
+    }
+
+    return { scenario: Promise.resolve(scenario) };
 };
 
 export const actions = {
-    default: async ({ request, params }) => {
+    default: async ({ request, params }: { request: Request; params: { scenarioId: string } }) => {
         const data = await request.formData();
-        const relationships = JSON.parse(data.get('relationships')?.toString() || '[]');
+        const relationships = JSON.parse(data.get('relationships')?.toString() || '[]') as Pick<Relationship, 'id' | 'stakeholder1Id' | 'stakeholder2Id' | 'description'>[];
         
-        // Update all relationships for this scenario
+        // First delete all existing relationships
         await prisma.relationship.deleteMany({
             where: { scenarioId: params.scenarioId }
         });
 
-        if (relationships.length > 0) {
-            await prisma.relationship.createMany({
-                data: relationships.map((r: { stakeholder1Id: string; stakeholder2Id: string; description: string }) => ({
-                    scenarioId: params.scenarioId,
-                    stakeholder1Id: r.stakeholder1Id,
-                    stakeholder2Id: r.stakeholder2Id,
-                    description: r.description
-                }))
-            });
-        }
+        // Create new relationships
+        await prisma.relationship.createMany({
+            data: relationships.map((r) => ({
+                id: r.id,
+                scenarioId: params.scenarioId,
+                stakeholder1Id: r.stakeholder1Id,
+                stakeholder2Id: r.stakeholder2Id,
+                description: r.description
+            }))
+        });
 
-        return { success: true };
+        throw redirect(303, `/${params.scenarioId}/war-room`);
     }
-} satisfies Actions; 
+} satisfies Actions;

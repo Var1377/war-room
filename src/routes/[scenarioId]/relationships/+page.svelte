@@ -1,16 +1,36 @@
 <!-- Relationships editing page -->
 <script lang="ts">
     import { Pencil, Check } from 'lucide-svelte';
-    import type { Relationship } from '@prisma/client';
+    import type { Relationship, Stakeholder } from '@prisma/client';
 
     const { data } = $props();
-    const { relationships } = $derived(data);
-
     let editedRelationships = $state<Relationship[] | null>(null);
     let editingIndex = $state<number | null>(null);
 
+    type ExpandedRelationship = {
+        id: string;
+        description: string;
+        stakeholder1: Stakeholder;
+        stakeholder2: Stakeholder;
+    };
+
+    type ServerResponse = {
+        id: string;
+        relationships: ExpandedRelationship[];
+    };
+
     $effect(() => {
-        editedRelationships = structuredClone(relationships);
+        void (async () => {
+            const response = await data.scenario as ServerResponse;
+            const relationships = response.relationships.map(rel => ({
+                id: rel.id,
+                scenarioId: response.id,
+                stakeholder1Id: rel.stakeholder1.id,
+                stakeholder2Id: rel.stakeholder2.id,
+                description: rel.description
+            }));
+            editedRelationships = structuredClone(relationships);
+        })();
     });
 </script>
 

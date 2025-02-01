@@ -23,7 +23,7 @@ model Stakeholder {
   scenarioId   String
   name         String
   role         String
-  interests    String
+  interests    String        @default("[]")
   scenario     Scenario     @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   stakeholder1Relationships Relationship[] @relation("stakeholder1")
   stakeholder2Relationships Relationship[] @relation("stakeholder2")

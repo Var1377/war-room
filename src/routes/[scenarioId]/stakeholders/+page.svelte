@@ -1,45 +1,56 @@
 <!-- Stakeholders editing page -->
 <script lang="ts">
-    import { Pencil, Plus, Trash2, Check } from 'lucide-svelte';;
+    import { Pencil, Plus, Trash2, Check } from 'lucide-svelte';
 
-    type EditableOverview = {
-        title: string;
-        overview: string;
-        stakeholders: Array<{
-            name: string;
-            role: string;
-            interests: string[];
-        }>;
+    type LoadedStakeholder = {
+        id: string;
+        name: string;
+        role: string;
+        interests: string;
     };
 
-    const { data } = $props();
-    const { scenario } = $derived(data);
+    let { data } = $props();
+    
+    interface EditableStakeholder {
+        name: string;
+        role: string;
+        interests: string[];
+    }
 
-    let editedOverview = $state<EditableOverview | null>(null);
+    interface EditableData {
+        title: string;
+        overview: string;
+        stakeholders: EditableStakeholder[];
+    }
+
+    let editedData = $state<EditableData | null>(null);
     let editingTitle = $state(false);
     let editingOverview = $state(false);
-    let editingField: {
+    let editingField = $state<{
         type: 'name' | 'role' | 'interest';
         stakeholderIndex: number;
         interestIndex?: number;
-    } | null = $state(null);
+    } | null>(null);
 
     $effect(() => {
-        editedOverview = {
-            title: scenario.title,
-            overview: scenario.overview,
-            stakeholders: scenario.stakeholders.map(s => ({
-                name: s.name,
-                role: s.role,
-                interests: s.interests.split('\n')
-            }))
-        };
+        void (async () => {
+            const scenario = await data.scenario;
+            editedData = {
+                title: scenario.title,
+                overview: scenario.overview,
+                stakeholders: scenario.stakeholders.map((s: LoadedStakeholder) => ({
+                    name: s.name,
+                    role: s.role,
+                    interests: s.interests ? JSON.parse(s.interests) : []
+                }))
+            };
+        })();
     });
 
     function addStakeholder() {
-        if (!editedOverview) return;
-        editedOverview.stakeholders = [
-            ...editedOverview.stakeholders,
+        if (!editedData) return;
+        editedData.stakeholders = [
+            ...editedData.stakeholders,
             {
                 name: 'New Stakeholder',
                 role: 'Role',
@@ -49,30 +60,29 @@
     }
 
     function addInterest(stakeholderIndex: number) {
-        if (!editedOverview) return;
-        editedOverview.stakeholders[stakeholderIndex].interests = [
-            ...editedOverview.stakeholders[stakeholderIndex].interests,
+        if (!editedData) return;
+        editedData.stakeholders[stakeholderIndex].interests = [
+            ...editedData.stakeholders[stakeholderIndex].interests,
             'New Interest'
         ];
     }
 
     function removeStakeholder(index: number) {
-        if (!editedOverview) return;
-        editedOverview.stakeholders = editedOverview.stakeholders.filter(
-            (_: unknown, i: number) => i !== index
-        );
+        if (!editedData) return;
+        editedData.stakeholders = editedData.stakeholders.filter((_, i) => i !== index);
     }
 
     function removeInterest(stakeholderIndex: number, interestIndex: number) {
-        if (!editedOverview) return;
-        editedOverview.stakeholders[stakeholderIndex].interests = editedOverview.stakeholders[
-            stakeholderIndex
-        ].interests.filter((_: unknown, i: number) => i !== interestIndex);
+        if (!editedData) return;
+        editedData.stakeholders[stakeholderIndex].interests = 
+            editedData.stakeholders[stakeholderIndex].interests.filter((_, i) => i !== interestIndex);
     }
 </script>
 
-{#if !editedOverview}
-    loading...
+{#if !editedData}
+    <div class="flex items-center justify-center p-8">
+        <span class="loading loading-spinner loading-lg"></span>
+    </div>
 {:else}
     <div class="card p-8 text-white preset-tonal">
         <div class="flex max-w-none flex-col gap-4 text-white">
@@ -80,7 +90,7 @@
                 {#if editingTitle}
                     <div class="flex items-center gap-2">
                         <input
-                            bind:value={editedOverview.title}
+                            bind:value={editedData.title}
                             class="h1 input flex-1 bg-transparent px-2 outline-none"
                         />
                         <button class="variant-soft-secondary btn-icon" onclick={() => (editingTitle = false)}>
@@ -89,7 +99,7 @@
                     </div>
                 {:else}
                     <div class="flex items-center gap-2">
-                        <h1 class="h1 flex-1">{editedOverview.title}</h1>
+                        <h1 class="h1 flex-1">{editedData.title}</h1>
                         <button class="variant-soft-secondary btn-icon" onclick={() => (editingTitle = true)}>
                             <Pencil size={16} />
                         </button>
@@ -101,7 +111,7 @@
                 {#if editingOverview}
                     <div class="flex gap-2">
                         <textarea
-                            bind:value={editedOverview.overview}
+                            bind:value={editedData.overview}
                             class="textarea min-h-[100px] flex-1 bg-transparent p-2 outline-none"
                         ></textarea>
                         <button
@@ -113,7 +123,7 @@
                     </div>
                 {:else}
                     <div class="flex items-start gap-2">
-                        <p class="flex-1">{editedOverview.overview}</p>
+                        <p class="flex-1">{editedData.overview}</p>
                         <button
                             class="variant-soft-secondary btn-icon"
                             onclick={() => (editingOverview = true)}
@@ -132,7 +142,7 @@
             </div>
 
             <section class="flex flex-col gap-2">
-                {#each editedOverview.stakeholders as stakeholder, stakeholderIndex}
+                {#each editedData.stakeholders as stakeholder, stakeholderIndex}
                     <section class="group card p-4 preset-tonal">
                         <div class="flex flex-col gap-2">
                             <div>
@@ -248,7 +258,7 @@
             </section>
 
             <form method="POST" class="mt-4 flex justify-end">
-                <input type="hidden" name="overview" value={JSON.stringify(editedOverview)} />
+                <input type="hidden" name="overview" value={JSON.stringify(editedData)} />
                 <button type="submit" class="variant-filled-primary btn">Save Changes</button>
             </form>
         </div>
