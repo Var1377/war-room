@@ -145,11 +145,49 @@ def generate_event(stakeholders, stakeholder_metadata, events):
         
         # Call the language model with the prompt
         new_events = call_language_model(prompt).split(',')
+        response = call_language_model(prompt)
         
-        return new_events
+        # Clean up the response
+        response = response.strip()
+        response = response.replace('```', '').replace('"', '')
+        response = response.replace('\n', '')
+        response = response.replace('[', '').replace(']', '')
+        
+        # Split into list by commas
+        events_list = [event.strip() for event in response.split(',')]
+        
+        # Verify we got the right number of events
+        if len(events_list) != len(stakeholders):
+            raise ValueError(f"Expected {len(stakeholders)} events, but got {len(events_list)}")
+            
+        return events_list
         
     except FileNotFoundError:
         raise Exception("prompt.txt file not found in src/agents directory")
+
+        raise Exception("prompt.txt file not found")
+    
+    
+test_data = {
+        "stakeholders": ["SpaceX", "NASA", "Blue Origin"],
+        "events": [
+            "SpaceX successfully launches Starship orbital test flight",
+            "NASA announces partnership for lunar landing missions",
+            "Blue Origin unveils new Glenn rocket design"
+        ]
+    }
+
+result = generate_event(test_data["stakeholders"], test_data["events"])
+
+
+
+print("\nStakeholders:", test_data["stakeholders"])
+print("\nPrevious events:")
+for event in test_data["events"]:
+    print(f"- {event}")
+print("\nGenerated events:")
+print(result)
+print(type(result))
 
 def get_stakeholders(data):
     return data.get("stakeholders", [])
@@ -210,3 +248,6 @@ def transform():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+

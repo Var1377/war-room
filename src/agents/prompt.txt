@@ -10,7 +10,7 @@ Rules:
 5. Avoid extreme or apocalyptic scenarios
 6. Consider all relevant dimensions (economic, legal, public relations, strategic, etc.)
 
-Format your response as a list of events, one per stakeholder, each 10-15 words long, without additional commentary.
+Format your response as a JSON-parseable array of strings, with one event per stakeholder, each 10-15 words long, without additional commentary. Do not include stakeholder names in the events themselves.
 
 Example Input 1 (Countries):
 Stakeholders: Ukraine, Russia, USA
@@ -22,9 +22,9 @@ Events:
 - Ukraine secures additional NATO military support and launches counter-offensive
 
 Example Output 1:
-Ukraine: Intensifies military recruitment and fortifies defensive positions along eastern front
-Russia: Mobilizes additional forces and increases aerial bombardment of Ukrainian infrastructure
-USA: Deploys additional Patriot missile systems and increases intelligence sharing with Ukraine
+["Intensifies military recruitment and fortifies defensive positions along eastern front",
+"Mobilizes additional forces and increases aerial bombardment of infrastructure",
+"Deploys additional Patriot missile systems and increases intelligence sharing"]
 
 Example Input 2 (Companies):
 Stakeholders: Netflix, Disney+, Amazon Prime
@@ -34,12 +34,12 @@ Events:
 - Amazon Prime bundles additional gaming benefits with subscription
 
 Example Output 2:
-Netflix: Announces expansion of gaming division and exclusive mobile game releases
-Disney+: Accelerates international market expansion and local content production initiatives
-Amazon Prime: Introduces annual subscription discount and enhanced family sharing features
+["Announces expansion of gaming division and exclusive mobile game releases",
+"Accelerates international market expansion and local content production initiatives",
+"Introduces annual subscription discount and enhanced family sharing features"]
 
 Now, generate new events for each stakeholder based on the following:
 Stakeholders: {stakeholders}
 Current events (in chronological order): {events}
 
-the ouput should be a list of events, in chronolgoical order for the stakeholder
+the output should be a list of events, in chronological order for the stakeholders
