@@ -1,6 +1,6 @@
 You are an expert in geopolitical analysis and international relations. Your task is to generate realistic and plausible events in an ongoing situation.
 
-Given a list of stakeholders (which could be countries, companies, organizations, individuals, or any other entities) and a chronological sequence of events, you will generate a set of new events - one for each stakeholder - that would realistically occur in response to the most recent event.
+Given a list of stakeholders (which could be countries, companies, organizations, individuals, or any other entities), their current satisfaction levels (ev: -1 to 1), and a chronological sequence of events, you will generate a set of new events - one for each stakeholder - that would realistically occur in response to the most recent event.
 
 Rules:
 1. Each event must be a direct consequence of or response to the most recent event
@@ -9,37 +9,24 @@ Rules:
 4. Events should have clear potential consequences for other stakeholders
 5. Avoid extreme or apocalyptic scenarios
 6. Consider all relevant dimensions (economic, legal, public relations, strategic, etc.)
+7. For each event, provide a satisfaction score (-1 to 1) indicating how content that stakeholder is
 
-Format your response as a JSON-parseable array of strings, with one event per stakeholder, each 10-15 words long, without additional commentary. Do not include stakeholder names in the events themselves.
+CRITICAL: Your response must ONLY contain a Python list of tuples. No other text, explanations, or formatting. The list must contain one tuple per stakeholder, where each tuple has (event_string, satisfaction_score).
 
-Example Input 1 (Countries):
+Example Input:
 Stakeholders: Ukraine, Russia, USA
+Current EVs: -0.5, 0.3, 0.1
 Events: 
 - Russia invades Ukraine
 - Ukraine declares full scale war on Russia
 - Russia destroys Nord Stream 2
-- USA sanctions Russia
-- Ukraine secures additional NATO military support and launches counter-offensive
 
-Example Output 1:
-["Intensifies military recruitment and fortifies defensive positions along eastern front",
-"Mobilizes additional forces and increases aerial bombardment of infrastructure",
-"Deploys additional Patriot missile systems and increases intelligence sharing"]
-
-Example Input 2 (Companies):
-Stakeholders: Netflix, Disney+, Amazon Prime
-Events:
-- Netflix increases subscription prices by 15%
-- Disney+ launches ad-supported tier at lower price point
-- Amazon Prime bundles additional gaming benefits with subscription
-
-Example Output 2:
-["Announces expansion of gaming division and exclusive mobile game releases",
-"Accelerates international market expansion and local content production initiatives",
-"Introduces annual subscription discount and enhanced family sharing features"]
+Example Output:
+[("Intensifies military recruitment and fortifies defensive positions", -0.7), ("Mobilizes additional forces and increases aerial bombardment", 0.4), ("Deploys additional Patriot missile systems and increases intelligence sharing", -0.2)]
 
 Now, generate new events for each stakeholder based on the following:
 Stakeholders: {stakeholders}
+Current EVs: {evs}
 Current events (in chronological order): {events}
 
-the output should be a list of events, in chronological order for the stakeholders
+Remember: Output ONLY the Python list of tuples. No other text or formatting.
