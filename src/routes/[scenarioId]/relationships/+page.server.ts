@@ -1,5 +1,5 @@
 import { prisma } from '$lib/../hooks.server';
-import { analyzeRelationships } from '$lib/ai';
+import { analyzeRelationships, storeRelationsInVectorDB } from '$lib/ai';
 import type { Actions } from './$types';
 import type { Relationship } from '@prisma/client';
 import { error, redirect } from '@sveltejs/kit';
@@ -55,6 +55,8 @@ export const actions = {
                 description: r.description
             }))
         });
+
+        await storeRelationsInVectorDB(relationships);
 
         throw redirect(303, `/${params.scenarioId}/war-room`);
     }

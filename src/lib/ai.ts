@@ -86,39 +86,41 @@ export const analyzeScenario = async (id: string, prompt: string) => {
     });
 
     const overview = JSON.parse(response.choices[0].message.content!);
-    
-    const scenario = await prisma.scenario.update({
-        where: { id },
-        data: {
-            title: overview.title,
-            overview: overview.overview,
-            stakeholders: {
-                create: overview.stakeholders.map((s: { name: string, role: string, interests: string[] }) => ({
-                    name: s.name,
-                    role: s.role,
-                    interests: JSON.stringify(s.interests),
-                }))
-            }
-        },
-        include: {
-            stakeholders: {
-                select: {
-                    id: true,
-                    name: true,
-                    role: true,
-                    interests: true
-                }
-            },
-            relationships: {
-                select: {
-                    id: true,
-                    description: true,
-                }
-            }
-        }
-    });
 
-    return scenario;
+	const scenario = await prisma.scenario.update({
+		where: { id },
+		data: {
+			title: overview.title,
+			overview: overview.overview,
+			stakeholders: {
+				create: overview.stakeholders.map(
+					(s: { name: string; role: string; interests: string[] }) => ({
+						name: s.name,
+						role: s.role,
+						interests: JSON.stringify(s.interests)
+					})
+				)
+			}
+		},
+		include: {
+			stakeholders: {
+				select: {
+					id: true,
+					name: true,
+					role: true,
+					interests: true
+				}
+			},
+			relationships: {
+				select: {
+					id: true,
+					description: true
+				}
+			}
+		}
+	});
+
+	return scenario;
 };
 
 export const analyzeRelationships = async (id: string) => {
@@ -127,7 +129,7 @@ export const analyzeRelationships = async (id: string) => {
         include: { stakeholders: true }
     });
 
-    if (!scenario) throw new Error('Scenario not found');
+	if (!scenario) throw new Error('Scenario not found');
 
     const prompt = `We're in the process of analyzing the following scenario: ${scenario.overview}. The following are the stakeholders in this scenario: ${JSON.stringify(scenario.stakeholders)}. Analyze the relationships between the stakeholders. We're looking for relationships that shape the decisions of the stakeholders.`;
     
@@ -148,38 +150,93 @@ export const analyzeRelationships = async (id: string) => {
 
     const { relationships } = JSON.parse(response.choices[0].message.content!);
 
-    return await prisma.scenario.update({
-        where: { id },
-        data: {
-            relationships: {
-                deleteMany: {
-                    scenarioId: scenario.id
-                },
-                createMany: {
-                    data: relationships
-                }
-            }
-        },
-        include: {
-            stakeholders: true,
-            relationships: {
-                select: {
-                    id: true,
-                    description: true,
-                    stakeholder1: true,
-                    stakeholder2: true
-                }
-            }
-        }
-    });
+	return await prisma.scenario.update({
+		where: { id },
+		data: {
+			relationships: {
+				deleteMany: {
+					scenarioId: scenario.id
+				},
+				createMany: {
+					data: relationships
+				}
+			}
+		},
+		include: {
+			stakeholders: true,
+			relationships: {
+				select: {
+					id: true,
+					description: true,
+					stakeholder1: true,
+					stakeholder2: true
+				}
+			}
+		}
+	});
+};
+
+export const storeRelationsInVectorDB = async (
+	relationships: {
+		id: string;
+		description: string;
+		stakeholder1: { id: string; name: string };
+		stakeholder2: { id: string; name: string };
+	}[]
+) => {
+	try {
+		const response = await fetch('http://localhost:5000/put_relations_in_db', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				relations: relationships.map((rel) => ({
+					stakeholder1: rel.stakeholder1.name,
+					stakeholder2: rel.stakeholder2.name,
+					description: rel.description
+				}))
+			})
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to store relations in vector database');
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error('Error storing relations in vector DB:', error);
+		throw error;
+	}
+};
+
+export const queryVectorDB = async (query: string) => {
+	try {
+		const response = await fetch('http://localhost:5000/get_from_db', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ query })
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to query vector database');
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error('Error querying vector DB:', error);
+		return { results: [] };
+	}
 };
 
 export interface GeneratedEvent {
-    name: string;
-    description: string;
-    reasoning: string;    // Strategic reasoning behind the choice
-    implications: string; // Expected consequences and impact
-    satisfaction: number;
+	name: string;
+	description: string;
+	reasoning: string; // Strategic reasoning behind the choice
+	implications: string; // Expected consequences and impact
+	satisfaction: number;
 }
 
 export const generateStakeholderEvents = async (
@@ -200,32 +257,47 @@ export const generateStakeholderEvents = async (
         }
     });
 
-    if (!scenario) throw new Error('Scenario not found');
+	if (!scenario) throw new Error('Scenario not found');
 
-    const stakeholder = scenario.stakeholders.find(s => s.id === stakeholderId);
-    if (!stakeholder) throw new Error('Stakeholder not found');
+	const stakeholder = scenario.stakeholders.find((s) => s.id === stakeholderId);
+	if (!stakeholder) throw new Error('Stakeholder not found');
 
-    // Build the prompt for event generation
-    const prompt = `Given the following scenario and sequence of events, generate 3-4 distinct and well-detailed possible next actions for the stakeholder.
+	const relationships = scenario.relationships.filter(
+		(r) => r.stakeholder1Id === stakeholderId || r.stakeholder2Id === stakeholderId
+	);
+
+	// Query the vector DB for relevant historical relationship data
+	const vectorDbQuery = `Find relevant information about relationships between ${stakeholder.name} and ${relationships
+		.map((r) => (r.stakeholder1Id === stakeholderId ? r.stakeholder2.name : r.stakeholder1.name))
+		.join(', ')}`;
+
+	const vectorDbResults = await queryVectorDB(vectorDbQuery);
+	const historicalContext = vectorDbResults.results.join('\n');
+
+	// Build the prompt for event generation
+	const prompt = `Given the following scenario and sequence of events, generate 3-4 distinct and well-detailed possible next actions for the stakeholder.
 Scenario Overview: ${scenario.overview}
 
+Historical Context:
+${historicalContext}
+
 Timeline of Events:
-${eventPath.map((event, index) => 
-    `${index + 1}. ${event.name} (by ${event.actor})
+${eventPath
+	.map(
+		(event, index) =>
+			`${index + 1}. ${event.name} (by ${event.actor})
     Description: ${event.description}
     ${event.reasoning ? `Reasoning: ${event.reasoning}` : ''}
     ${event.implications ? `Implications: ${event.implications}` : ''}`
-).join('\n\n')}
+	)
+	.join('\n\n')}
 
 Acting Stakeholder: ${stakeholder.name}
 Stakeholder Role: ${stakeholder.role}
 Stakeholder Interests: ${stakeholder.interests}
 
 Related Relationships:
-${scenario.relationships
-    .filter(r => r.stakeholder1Id === stakeholderId || r.stakeholder2Id === stakeholderId)
-    .map(r => `- ${r.description}`)
-    .join('\n')}
+${relationships.map((r) => `- ${r.description}`).join('\n')}
 
 Generate 3-4 significantly different strategic options. For each option, provide:
 1. A clear, concise action title
@@ -239,7 +311,13 @@ Generate 3-4 significantly different strategic options. For each option, provide
    - Expected immediate consequences
    - Potential long-term impacts
    - Risks and opportunities
-   - Effects on relationships with other stakeholders`;
+   - Effects on relationships with other stakeholders
+
+Each option must be:
+- A distinct strategic approach (not variations of the same strategy)
+- Realistic and plausible within the context
+- Clearly influenced by the sequence of previous events
+- A meaningful choice with significant strategic implications`;
 
     const response = await openai.chat.completions.create({
         messages: [
