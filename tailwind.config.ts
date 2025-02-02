@@ -4,6 +4,7 @@ import typography from '@tailwindcss/typography';
 import type { Config } from 'tailwindcss';
 import { skeleton, contentPath } from '@skeletonlabs/skeleton/plugin';
 import * as themes from '@skeletonlabs/skeleton/themes';
+import customTheme from './src/lib/themes';
 
 export default {
 	content: ['./src/**/*.{html,js,svelte,ts}', contentPath(import.meta.url, 'svelte')],
@@ -16,7 +17,9 @@ export default {
 
 	plugins: [typography, forms, containerQueries, skeleton({
 		themes: [
+			customTheme,
 			themes.crimson,
+			themes.vintage,
 		]
 	})]
 } satisfies Config;
