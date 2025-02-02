@@ -39,7 +39,7 @@ export const actions = {
     default: async ({ request, params }: { request: Request; params: { scenarioId: string } }) => {
         const data = await request.formData();
         const relationships = JSON.parse(data.get('relationships')?.toString() || '[]') as Pick<Relationship, 'id' | 'stakeholder1Id' | 'stakeholder2Id' | 'description'>[];
-        
+
         // First delete all existing relationships
         await prisma.relationship.deleteMany({
             where: { scenarioId: params.scenarioId }
