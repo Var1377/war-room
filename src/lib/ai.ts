@@ -69,7 +69,7 @@ const StakeholderEvent = {
   }
 };
 
-export const analyzeScenario = async (id: string, prompt: string, model: string = defaultModel) => {
+export const analyzeScenario = async (id: string, prompt: string) => {
     const response = await openai.chat.completions.create({
         model,
         messages: [
