@@ -80,11 +80,9 @@
 </script>
 
 {#if !editedData}
-    <div class="flex items-center justify-center p-8">
-        <span class="loading loading-spinner loading-lg"></span>
-    </div>
+    <div class="h-[calc(100vh-100px)] w-full m-4 placeholder animate-pulse rounded-lg"></div>
 {:else}
-    <div class="card p-8 text-white preset-tonal">
+    <div class="card p-8 m-4 text-white preset-tonal">
         <div class="flex max-w-none flex-col gap-4 text-white">
             <div class="group relative">
                 {#if editingTitle}
@@ -259,7 +257,7 @@
 
             <form method="POST" class="mt-4 flex justify-end">
                 <input type="hidden" name="overview" value={JSON.stringify(editedData)} />
-                <button type="submit" class="variant-filled-primary btn">Save Changes</button>
+                <button type="submit" class="preset-tonal btn">Save Changes</button>
             </form>
         </div>
     </div>

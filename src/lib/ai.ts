@@ -48,9 +48,39 @@ export const analyzeScenario = async (id: string,prompt: string, model: string =
     return scenario;
 };
 
-export const analyzeRelationships = async (id: string) => {
+export const analyzeRelationships = async (id: string, model: string = defaultModel) => {
     const scenario = await prisma.scenario.findUnique({
         where: { id },
+        include: { stakeholders: true }
+    });
+
+    if (!scenario) throw new Error('Scenario not found');
+
+    const prompt = `We're in the process of analyzing the following scenario: ${scenario.overview}. The following are the stakeholders in this scenario: ${JSON.stringify(scenario.stakeholders)}. Analyze the relationships between the stakeholders and return the relationships in the following JSON format: [{"stakeholder1Id":"id", "stakeholder2Id":"id", "description":"description"}]. We're looking for relationships that shape the decisions of the stakeholders.`;
+    const prefix = `[{"stakeholder1Id":`;
+    const response = await anthropic.messages.create({
+        messages: [
+            { role: "user", content: prompt },
+            { role: "assistant", content: prefix },
+        ],
+        model,
+        max_tokens: 2048,
+    });
+
+    const relationships = JSON.parse((`${prefix}${(response.content[0] as TextBlock).text}`));
+
+    return await prisma.scenario.update({
+        where: { id },
+        data: {
+            relationships: {
+                deleteMany: {
+                    scenarioId: scenario.id
+                },
+                createMany: {
+                    data: relationships
+                }
+            }
+        },
         include: {
             stakeholders: true,
             relationships: {
@@ -63,25 +93,4 @@ export const analyzeRelationships = async (id: string) => {
             }
         }
     });
-
-    if (!scenario) throw new Error('Scenario not found');
-
-    // delete all relationships
-    await prisma.relationship.deleteMany({
-        where: { scenarioId: id }
-    });
-
-    // create new relationships
-    await prisma.relationship.createMany({
-        data: scenario.stakeholders.flatMap((s1) => 
-            scenario.stakeholders.map((s2) => ({
-                scenarioId: id,
-                stakeholder1Id: s1.id,
-                stakeholder2Id: s2.id,
-                description: `The relationship between ${s1.name} and ${s2.name}`
-            }))
-        )
-    });
-
-    return scenario;
 };

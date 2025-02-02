@@ -25,7 +25,7 @@
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			{#each scenarios as scenario}
 				<button
-					class="card p-4 text-left transition-colors hover:bg-primary-500/10"
+					class="card p-4 text-left transition-colors hover:preset-outlined-primary-500 preset-tonal"
 					onclick={() => selectScenario(scenario.prompt)}
 				>
 					<h3 class="h3 mb-2">{scenario.title}</h3>
@@ -53,9 +53,11 @@
 		<form method="POST" action="?/analyze">
 			<input type="hidden" name="prompt" bind:value={prompt} />
 			<input type="hidden" name="model" bind:value={$selectedModel} />
-			<button type="submit" class="variant-filled-primary btn w-full">
-				Analyze Scenario
-			</button>
+			<div class="flex justify-center items-center">
+				<button type="submit" class="preset-tonal btn">
+					Analyze Scenario
+				</button>
+			</div>
 		</form>
 	</div>
 </div>
