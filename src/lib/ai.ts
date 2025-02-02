@@ -1,18 +1,91 @@
-import type { TextBlock } from '@anthropic-ai/sdk/src/resources/messages/messages.js';
-import { anthropic, defaultModel, prisma } from '../hooks.server';
+import { openai, defaultModel, prisma } from '../hooks.server';
 
-export const analyzeScenario = async (id: string,prompt: string, model: string = defaultModel) => {
-    const prefix = `{"title":"`;
-    const response = await anthropic.messages.create({
-        messages: [
-            { role: "user", content: `What do you think about the following scenario: ${prompt}. Answer in the following JSON format: {"title":string, "overview":string, "stakeholders":[{"name":string, "role":string, "interests":string[]}]}` },
-            { role: "assistant", content: prefix },
-        ],
+const model = "gpt-4o-mini";
+
+const ScenarioAnalysis = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "overview", "stakeholders"],
+  properties: {
+    title: { type: "string" },
+    overview: { type: "string" },
+    stakeholders: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "role", "interests"],
+        properties: {
+          name: { type: "string" },
+          role: { type: "string" },
+          interests: { type: "array", items: { type: "string" } }
+        }
+      }
+    }
+  }
+};
+
+const RelationshipAnalysis = {
+  type: "object",
+  additionalProperties: false,
+  required: ["relationships"],
+  properties: {
+    relationships: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["stakeholder1Id", "stakeholder2Id", "description"],
+        properties: {
+          stakeholder1Id: { type: "string" },
+          stakeholder2Id: { type: "string" },
+          description: { type: "string" }
+        }
+      }
+    }
+  }
+};
+
+const StakeholderEvent = {
+  type: "object",
+  additionalProperties: false,
+  required: ["events"],
+  properties: {
+    events: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "description", "reasoning", "implications", "satisfaction"],
+        properties: {
+          name: { type: "string" },
+          description: { type: "string" },
+          reasoning: { type: "string" },
+          implications: { type: "string" },
+          satisfaction: { type: "number", minimum: -1, maximum: 1 }
+        }
+      }
+    }
+  }
+};
+
+export const analyzeScenario = async (id: string, prompt: string, model: string = defaultModel) => {
+    const response = await openai.chat.completions.create({
         model,
+        messages: [
+            { role: "user", content: `What do you think about the following scenario: ${prompt}` }
+        ],
+        response_format: { 
+            type: "json_schema", 
+            json_schema: {
+                name: "ScenarioAnalysis",
+                schema: ScenarioAnalysis
+            } 
+        },
         max_tokens: 2048,
     });
 
-    const overview = JSON.parse((`${prefix}${(response.content[0] as TextBlock).text}`));
+    const overview = JSON.parse(response.choices[0].message.content!);
     
     const scenario = await prisma.scenario.update({
         where: { id },
@@ -48,7 +121,7 @@ export const analyzeScenario = async (id: string,prompt: string, model: string =
     return scenario;
 };
 
-export const analyzeRelationships = async (id: string, model: string = defaultModel) => {
+export const analyzeRelationships = async (id: string) => {
     const scenario = await prisma.scenario.findUnique({
         where: { id },
         include: { stakeholders: true }
@@ -56,18 +129,24 @@ export const analyzeRelationships = async (id: string, model: string = defaultMo
 
     if (!scenario) throw new Error('Scenario not found');
 
-    const prompt = `We're in the process of analyzing the following scenario: ${scenario.overview}. The following are the stakeholders in this scenario: ${JSON.stringify(scenario.stakeholders)}. Analyze the relationships between the stakeholders and return the relationships in the following JSON format: [{"stakeholder1Id":"id", "stakeholder2Id":"id", "description":"description"}]. We're looking for relationships that shape the decisions of the stakeholders.`;
-    const prefix = `[{"stakeholder1Id":`;
-    const response = await anthropic.messages.create({
+    const prompt = `We're in the process of analyzing the following scenario: ${scenario.overview}. The following are the stakeholders in this scenario: ${JSON.stringify(scenario.stakeholders)}. Analyze the relationships between the stakeholders. We're looking for relationships that shape the decisions of the stakeholders.`;
+    
+    const response = await openai.chat.completions.create({
         messages: [
-            { role: "user", content: prompt },
-            { role: "assistant", content: prefix },
+            { role: "user", content: prompt }
         ],
         model,
+        response_format: { 
+            type: "json_schema", 
+            json_schema: {
+                name: "RelationshipAnalysis",
+                schema: RelationshipAnalysis
+            }
+        },
         max_tokens: 2048,
     });
 
-    const relationships = JSON.parse((`${prefix}${(response.content[0] as TextBlock).text}`));
+    const { relationships } = JSON.parse(response.choices[0].message.content!);
 
     return await prisma.scenario.update({
         where: { id },
@@ -94,6 +173,7 @@ export const analyzeRelationships = async (id: string, model: string = defaultMo
         }
     });
 };
+
 export interface GeneratedEvent {
     name: string;
     description: string;
@@ -106,9 +186,7 @@ export const generateStakeholderEvents = async (
     scenarioId: string,
     stakeholderId: string,
     eventPath: Array<{ name: string; description: string; actor: string; reasoning?: string; implications?: string }>,
-    model: string = defaultModel
 ): Promise<GeneratedEvent[]> => {
-    // Get the full scenario context
     const scenario = await prisma.scenario.findUnique({
         where: { id: scenarioId },
         include: {
@@ -127,7 +205,6 @@ export const generateStakeholderEvents = async (
     const stakeholder = scenario.stakeholders.find(s => s.id === stakeholderId);
     if (!stakeholder) throw new Error('Stakeholder not found');
 
-    const prefix = '[{"name":';
     // Build the prompt for event generation
     const prompt = `Given the following scenario and sequence of events, generate 3-4 distinct and well-detailed possible next actions for the stakeholder.
 Scenario Overview: ${scenario.overview}
@@ -162,26 +239,24 @@ Generate 3-4 significantly different strategic options. For each option, provide
    - Expected immediate consequences
    - Potential long-term impacts
    - Risks and opportunities
-   - Effects on relationships with other stakeholders
+   - Effects on relationships with other stakeholders`;
 
-Each option must be:
-- A distinct strategic approach (not variations of the same strategy)
-- Realistic and plausible within the context
-- Clearly influenced by the sequence of previous events
-- A meaningful choice with significant strategic implications
-
-Answer in the following JSON format: [{"name":"Brief action title", "description":"Detailed description of actions", "reasoning":"Strategic reasoning and justification", "implications":"Expected consequences and impacts", "satisfaction":number from -1 to 1}]`;
-
-    const response = await anthropic.messages.create({
+    const response = await openai.chat.completions.create({
         messages: [
-            { role: "user", content: prompt },
-            { role: "assistant", content: prefix }
+            { role: "user", content: prompt }
         ],
         model,
-        max_tokens: 4096,  // Keep high token limit for detailed descriptions
+        response_format: { 
+            type: "json_schema", 
+            json_schema: {
+                name: "StakeholderEvent",
+                schema: StakeholderEvent
+            }
+        },
+        max_tokens: 4096,
         temperature: 0.7
     });
 
-    const content = (response.content[0] as { text: string }).text;
-    return JSON.parse(`${prefix}${content}`);
+    const { events } = JSON.parse(response.choices[0].message.content!);
+    return events;
 };

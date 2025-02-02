@@ -144,6 +144,7 @@
 
     import { onMount } from 'svelte';
     import Graph from './Graph.svelte';
+	import { stopPropagation } from 'svelte/legacy';
   
 
 	function get_nodes() {
@@ -261,9 +262,9 @@
 {#if editedRelationships}
 
 	{#if showGraphPopup}
-		<div class="modal-overlay" on:click={closePopup}>
-			<div class="modal" on:click|stopPropagation>
-				<button class="btn" on:click={closePopup}>Close</button>
+		<div class="modal-overlay" onclick={closePopup}>
+			<div class="modal" onclick={stopPropagation}>
+				<button class="btn" onclick={closePopup}>Close</button>
 				<Graph nodes={graphNodes} links={graphLinks} {width} {height} />
 			</div>
 		</div>
@@ -273,11 +274,11 @@
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="h2">Stakeholder Relationships</h2>
 
-			<button type="button" class="btn preset-tonal" on:click={graphVisualise}>
+			<button type="button" class="btn preset-tonal" onclick={graphVisualise}>
 				Graph Visualise
 			</button>
 
-			<button class="variant-filled-primary btn" on:click={addRelationship}>
+			<button class="variant-filled-primary btn" onclick={addRelationship}>
 				<Plus size={16} class="mr-2" />
 				Add Relationship
 			</button>
@@ -289,7 +290,7 @@
 					<select
 						class="select"
 						value={relationship.stakeholder1.id}
-						on:change={(e) => updateStakeholder(index, 1, e.currentTarget.value)}
+						onchange={(e) => updateStakeholder(index, 1, e.currentTarget.value)}
 					>
 						{#each stakeholders as stakeholder}
 							<option value={stakeholder.id}>{stakeholder.name}</option>
@@ -299,7 +300,7 @@
 					<select
 						class="select"
 						value={relationship.stakeholder2.id}
-						on:change={(e) => updateStakeholder(index, 2, e.currentTarget.value)}
+						onchange={(e) => updateStakeholder(index, 2, e.currentTarget.value)}
 					>
 						{#each stakeholders as stakeholder}
 							<option value={stakeholder.id}>{stakeholder.name}</option>
@@ -307,7 +308,7 @@
 					</select>
 					<button
 						class="variant-soft-error btn-icon ml-auto"
-						on:click={() => deleteRelationship(index)}
+						onclick={() => deleteRelationship(index)}
 					>
 						<Trash2 size={16} />
 					</button>
@@ -318,14 +319,14 @@
 							bind:value={relationship.description}
 							class="textarea m-2 min-h-[100px] flex-1 bg-transparent p-2 outline-none"
 						></textarea>
-						<button class="variant-soft-secondary btn-icon" on:click={() => (editingIndex = null)}>
+						<button class="variant-soft-secondary btn-icon" onclick={() => (editingIndex = null)}>
 							<Check size={16} />
 						</button>
 					</div>
 				{:else}
 					<div class="mx-4 mt-2 flex items-start gap-2">
 						<p class="flex-1">{relationship.description}</p>
-						<button class="variant-soft-secondary btn-icon" on:click={() => (editingIndex = index)}>
+						<button class="variant-soft-secondary btn-icon" onclick={() => (editingIndex = index)}>
 							<Pencil size={16} />
 						</button>
 					</div>

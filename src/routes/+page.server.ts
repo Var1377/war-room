@@ -1,4 +1,4 @@
-import { anthropic, defaultModel, prisma } from '$lib/../hooks.server';
+import { defaultModel, prisma } from '$lib/../hooks.server';
 import { error, redirect } from '@sveltejs/kit';
 
 const DEFAULT_SCENARIOS = [
@@ -21,11 +21,8 @@ const DEFAULT_SCENARIOS = [
 ];
 
 export const load = (async () => {
-    const models = await anthropic.models.list();
     return { 
-        models: models.data, 
-        defaultModel: defaultModel,
-        scenarios: DEFAULT_SCENARIOS
+        scenarios: DEFAULT_SCENARIOS,
     };
 });
 
@@ -33,16 +30,15 @@ export const actions = {
     analyze: async ({ request }: { request: Request }) => {
         const data = await request.formData();
         const prompt = data.get('prompt')?.toString();
-        const model = data.get('model')?.toString();
 
-        if (!prompt || !model) {
+        if (!prompt) {
             throw error(400, 'Missing required fields');
         }
         
         const scenario = await prisma.scenario.create({
             data: {
                 prompt,
-                model,
+                model: defaultModel,
                 title: "",
                 overview: "",
             }
