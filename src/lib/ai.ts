@@ -9,7 +9,7 @@ export const analyzeScenario = async (id: string,prompt: string, model: string =
             { role: "assistant", content: prefix },
         ],
         model,
-        max_tokens: 512,
+        max_tokens: 2048,
     });
 
     const overview = JSON.parse((`${prefix}${(response.content[0] as TextBlock).text}`));
@@ -93,4 +93,95 @@ export const analyzeRelationships = async (id: string, model: string = defaultMo
             }
         }
     });
+};
+export interface GeneratedEvent {
+    name: string;
+    description: string;
+    reasoning: string;    // Strategic reasoning behind the choice
+    implications: string; // Expected consequences and impact
+    satisfaction: number;
+}
+
+export const generateStakeholderEvents = async (
+    scenarioId: string,
+    stakeholderId: string,
+    eventPath: Array<{ name: string; description: string; actor: string; reasoning?: string; implications?: string }>,
+    model: string = defaultModel
+): Promise<GeneratedEvent[]> => {
+    // Get the full scenario context
+    const scenario = await prisma.scenario.findUnique({
+        where: { id: scenarioId },
+        include: {
+            stakeholders: true,
+            relationships: {
+                include: {
+                    stakeholder1: true,
+                    stakeholder2: true
+                }
+            }
+        }
+    });
+
+    if (!scenario) throw new Error('Scenario not found');
+
+    const stakeholder = scenario.stakeholders.find(s => s.id === stakeholderId);
+    if (!stakeholder) throw new Error('Stakeholder not found');
+
+    const prefix = '[{"name":';
+    // Build the prompt for event generation
+    const prompt = `Given the following scenario and sequence of events, generate 3-4 distinct and well-detailed possible next actions for the stakeholder.
+Scenario Overview: ${scenario.overview}
+
+Timeline of Events:
+${eventPath.map((event, index) => 
+    `${index + 1}. ${event.name} (by ${event.actor})
+    Description: ${event.description}
+    ${event.reasoning ? `Reasoning: ${event.reasoning}` : ''}
+    ${event.implications ? `Implications: ${event.implications}` : ''}`
+).join('\n\n')}
+
+Acting Stakeholder: ${stakeholder.name}
+Stakeholder Role: ${stakeholder.role}
+Stakeholder Interests: ${stakeholder.interests}
+
+Related Relationships:
+${scenario.relationships
+    .filter(r => r.stakeholder1Id === stakeholderId || r.stakeholder2Id === stakeholderId)
+    .map(r => `- ${r.description}`)
+    .join('\n')}
+
+Generate 3-4 significantly different strategic options. For each option, provide:
+1. A clear, concise action title
+2. A detailed description of the concrete actions and steps involved
+3. Strategic reasoning that explains:
+   - Why this option makes sense given the context
+   - How it aligns with the stakeholder's interests
+   - How it responds to previous events
+   - The strategic advantages of this approach
+4. Strategic implications including:
+   - Expected immediate consequences
+   - Potential long-term impacts
+   - Risks and opportunities
+   - Effects on relationships with other stakeholders
+
+Each option must be:
+- A distinct strategic approach (not variations of the same strategy)
+- Realistic and plausible within the context
+- Clearly influenced by the sequence of previous events
+- A meaningful choice with significant strategic implications
+
+Answer in the following JSON format: [{"name":"Brief action title", "description":"Detailed description of actions", "reasoning":"Strategic reasoning and justification", "implications":"Expected consequences and impacts", "satisfaction":number from -1 to 1}]`;
+
+    const response = await anthropic.messages.create({
+        messages: [
+            { role: "user", content: prompt },
+            { role: "assistant", content: prefix }
+        ],
+        model,
+        max_tokens: 4096,  // Keep high token limit for detailed descriptions
+        temperature: 0.7
+    });
+
+    const content = (response.content[0] as { text: string }).text;
+    return JSON.parse(`${prefix}${content}`);
 };
