@@ -1,6 +1,6 @@
 # War Room
 RAG techniques are useful in integrating up-to-date information and enhancing response quality, particularly in specialised domains
- 
+
 In our exploration, we have specifically applied this within the context of a war room simulation. Every node represents a constituent country, and the edges forward a particular decision choice. The instantiation of the simulation enables aggregating multiple new instances of chain of decisions from the source node to all active world participants, this therefore lists all outcomes on its fringes. We additionally use qualitive metrics such as an evaluative function, a factual verifier to realign the prompts and alongside using historical data to capture the semantic processes.
  
 - The evaluation function is used as it propagates the sequential prompts from a user’s particular decision choice, and its cascading consequences – (confidence interval?)
