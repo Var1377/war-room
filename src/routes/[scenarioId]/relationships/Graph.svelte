@@ -83,7 +83,7 @@
         .attr('dy', '.35em')
         .attr('fill', '#FFFFF0')
         .attr('font-size', '80%')
-        .text(d => d.visible ? d.id : '');
+        .text(d =>  d.id );
   
       // Ticker update
       simulation.on('tick', () => {
@@ -123,7 +123,7 @@
         
         // Update node text
         nodeGroup.select('text')
-          .text(d => d.visible ? d.id : '');
+          .text(d => d.id );
           
         // Update link text
         linkGroup.select('text')
