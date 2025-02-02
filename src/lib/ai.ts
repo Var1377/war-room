@@ -1,91 +1,91 @@
 import { openai, defaultModel, prisma } from '../hooks.server';
 
-const model = "gpt-4o-mini";
+const model = 'gpt-4o-mini';
 
 const ScenarioAnalysis = {
-  type: "object",
-  additionalProperties: false,
-  required: ["title", "overview", "stakeholders"],
-  properties: {
-    title: { type: "string" },
-    overview: { type: "string" },
-    stakeholders: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "role", "interests"],
-        properties: {
-          name: { type: "string" },
-          role: { type: "string" },
-          interests: { type: "array", items: { type: "string" } }
-        }
-      }
-    }
-  }
+	type: 'object',
+	additionalProperties: false,
+	required: ['title', 'overview', 'stakeholders'],
+	properties: {
+		title: { type: 'string' },
+		overview: { type: 'string' },
+		stakeholders: {
+			type: 'array',
+			items: {
+				type: 'object',
+				additionalProperties: false,
+				required: ['name', 'role', 'interests'],
+				properties: {
+					name: { type: 'string' },
+					role: { type: 'string' },
+					interests: { type: 'array', items: { type: 'string' } }
+				}
+			}
+		}
+	}
 };
 
 const RelationshipAnalysis = {
-  type: "object",
-  additionalProperties: false,
-  required: ["relationships"],
-  properties: {
-    relationships: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["stakeholder1Id", "stakeholder2Id", "description"],
-        properties: {
-          stakeholder1Id: { type: "string" },
-          stakeholder2Id: { type: "string" },
-          description: { type: "string" }
-        }
-      }
-    }
-  }
+	type: 'object',
+	additionalProperties: false,
+	required: ['relationships'],
+	properties: {
+		relationships: {
+			type: 'array',
+			items: {
+				type: 'object',
+				additionalProperties: false,
+				required: ['stakeholder1Id', 'stakeholder2Id', 'description'],
+				properties: {
+					stakeholder1Id: { type: 'string' },
+					stakeholder2Id: { type: 'string' },
+					description: { type: 'string' }
+				}
+			}
+		}
+	}
 };
 
 const StakeholderEvent = {
-  type: "object",
-  additionalProperties: false,
-  required: ["events"],
-  properties: {
-    events: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "description", "reasoning", "implications", "satisfaction"],
-        properties: {
-          name: { type: "string" },
-          description: { type: "string" },
-          reasoning: { type: "string" },
-          implications: { type: "string" },
-          satisfaction: { type: "number", minimum: -1, maximum: 1 }
-        }
-      }
-    }
-  }
+	type: 'object',
+	additionalProperties: false,
+	required: ['events'],
+	properties: {
+		events: {
+			type: 'array',
+			items: {
+				type: 'object',
+				additionalProperties: false,
+				required: ['name', 'description', 'reasoning', 'implications', 'satisfaction'],
+				properties: {
+					name: { type: 'string' },
+					description: { type: 'string' },
+					reasoning: { type: 'string' },
+					implications: { type: 'string' },
+					satisfaction: { type: 'number', minimum: -1, maximum: 1 }
+				}
+			}
+		}
+	}
 };
 
 export const analyzeScenario = async (id: string, prompt: string) => {
-    const response = await openai.chat.completions.create({
-        model,
-        messages: [
-            { role: "user", content: `What do you think about the following scenario: ${prompt}` }
-        ],
-        response_format: { 
-            type: "json_schema", 
-            json_schema: {
-                name: "ScenarioAnalysis",
-                schema: ScenarioAnalysis
-            } 
-        },
-        max_tokens: 2048,
-    });
+	const response = await openai.chat.completions.create({
+		model,
+		messages: [
+			{ role: 'user', content: `What do you think about the following scenario: ${prompt}` }
+		],
+		response_format: {
+			type: 'json_schema',
+			json_schema: {
+				name: 'ScenarioAnalysis',
+				schema: ScenarioAnalysis
+			}
+		},
+		max_tokens: 2048
+	});
 
-    const overview = JSON.parse(response.choices[0].message.content!);
+	const overview = JSON.parse(response.choices[0].message.content!);
 
 	const scenario = await prisma.scenario.update({
 		where: { id },
@@ -124,31 +124,29 @@ export const analyzeScenario = async (id: string, prompt: string) => {
 };
 
 export const analyzeRelationships = async (id: string) => {
-    const scenario = await prisma.scenario.findUnique({
-        where: { id },
-        include: { stakeholders: true }
-    });
+	const scenario = await prisma.scenario.findUnique({
+		where: { id },
+		include: { stakeholders: true }
+	});
 
 	if (!scenario) throw new Error('Scenario not found');
 
-    const prompt = `We're in the process of analyzing the following scenario: ${scenario.overview}. The following are the stakeholders in this scenario: ${JSON.stringify(scenario.stakeholders)}. Analyze the relationships between the stakeholders. We're looking for relationships that shape the decisions of the stakeholders.`;
-    
-    const response = await openai.chat.completions.create({
-        messages: [
-            { role: "user", content: prompt }
-        ],
-        model,
-        response_format: { 
-            type: "json_schema", 
-            json_schema: {
-                name: "RelationshipAnalysis",
-                schema: RelationshipAnalysis
-            }
-        },
-        max_tokens: 2048,
-    });
+	const prompt = `We're in the process of analyzing the following scenario: ${scenario.overview}. The following are the stakeholders in this scenario: ${JSON.stringify(scenario.stakeholders)}. Analyze the relationships between the stakeholders. We're looking for relationships that shape the decisions of the stakeholders.`;
 
-    const { relationships } = JSON.parse(response.choices[0].message.content!);
+	const response = await openai.chat.completions.create({
+		messages: [{ role: 'user', content: prompt }],
+		model,
+		response_format: {
+			type: 'json_schema',
+			json_schema: {
+				name: 'RelationshipAnalysis',
+				schema: RelationshipAnalysis
+			}
+		},
+		max_tokens: 2048
+	});
+
+	const { relationships } = JSON.parse(response.choices[0].message.content!);
 
 	return await prisma.scenario.update({
 		where: { id },
@@ -177,26 +175,32 @@ export const analyzeRelationships = async (id: string) => {
 };
 
 export const storeRelationsInVectorDB = async (
-	relationships: {
+	relationships: Array<{
 		id: string;
+		stakeholder1Id: string;
+		stakeholder2Id: string;
 		description: string;
-		stakeholder1: { id: string; name: string };
-		stakeholder2: { id: string; name: string };
-	}[]
+	}>
 ) => {
 	try {
+		// Format relationships for vector DB storage
+		const formattedRelations = relationships.map((rel) => ({
+			id: rel.id,
+			text: rel.description,
+			metadata: {
+				stakeholder1Id: rel.stakeholder1Id,
+				stakeholder2Id: rel.stakeholder2Id
+			}
+		}));
+
+		console.log(formattedRelations);
+
 		const response = await fetch('http://localhost:5000/put_relations_in_db', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({
-				relations: relationships.map((rel) => ({
-					stakeholder1: rel.stakeholder1.name,
-					stakeholder2: rel.stakeholder2.name,
-					description: rel.description
-				}))
-			})
+			body: JSON.stringify(formattedRelations)
 		});
 
 		if (!response.ok) {
@@ -240,22 +244,28 @@ export interface GeneratedEvent {
 }
 
 export const generateStakeholderEvents = async (
-    scenarioId: string,
-    stakeholderId: string,
-    eventPath: Array<{ name: string; description: string; actor: string; reasoning?: string; implications?: string }>,
+	scenarioId: string,
+	stakeholderId: string,
+	eventPath: Array<{
+		name: string;
+		description: string;
+		actor: string;
+		reasoning?: string;
+		implications?: string;
+	}>
 ): Promise<GeneratedEvent[]> => {
-    const scenario = await prisma.scenario.findUnique({
-        where: { id: scenarioId },
-        include: {
-            stakeholders: true,
-            relationships: {
-                include: {
-                    stakeholder1: true,
-                    stakeholder2: true
-                }
-            }
-        }
-    });
+	const scenario = await prisma.scenario.findUnique({
+		where: { id: scenarioId },
+		include: {
+			stakeholders: true,
+			relationships: {
+				include: {
+					stakeholder1: true,
+					stakeholder2: true
+				}
+			}
+		}
+	});
 
 	if (!scenario) throw new Error('Scenario not found');
 
@@ -319,22 +329,20 @@ Each option must be:
 - Clearly influenced by the sequence of previous events
 - A meaningful choice with significant strategic implications`;
 
-    const response = await openai.chat.completions.create({
-        messages: [
-            { role: "user", content: prompt }
-        ],
-        model,
-        response_format: { 
-            type: "json_schema", 
-            json_schema: {
-                name: "StakeholderEvent",
-                schema: StakeholderEvent
-            }
-        },
-        max_tokens: 4096,
-        temperature: 0.7
-    });
+	const response = await openai.chat.completions.create({
+		messages: [{ role: 'user', content: prompt }],
+		model,
+		response_format: {
+			type: 'json_schema',
+			json_schema: {
+				name: 'StakeholderEvent',
+				schema: StakeholderEvent
+			}
+		},
+		max_tokens: 4096,
+		temperature: 0.7
+	});
 
-    const { events } = JSON.parse(response.choices[0].message.content!);
-    return events;
+	const { events } = JSON.parse(response.choices[0].message.content!);
+	return events;
 };

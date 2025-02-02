@@ -56,6 +56,10 @@ export const actions = {
             }))
         });
 
+        console.log("RELATIONSHIPSSSSS:")
+        console.log(relationships);
+        console.log("\n\n\n\n");
+
         await storeRelationsInVectorDB(relationships);
 
         throw redirect(303, `/${params.scenarioId}/war-room`);
